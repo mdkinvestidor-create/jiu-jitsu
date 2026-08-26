@@ -1,0 +1,6 @@
+{
+  "name": "Dinâmicas Jiu-Jitsu",
+  "description": "Landing page de +500 Dinâmicas Interativas de Jiu-Jitsu prontas para aplicar em aula.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
