@@ -8,40 +8,11 @@ interface HeroSectionProps {
 export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
   const hasEndedRef = useRef(false);
 
-  const toggleSound = () => {
+  const enableSoundAndPlay = () => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
-      if (isMuted) {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
-          '*'
-        );
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
-          '*'
-        );
-        setIsMuted(false);
-      } else {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'mute', args: '' }),
-          '*'
-        );
-        setIsMuted(true);
-      }
-    }
-  };
-
-  const handleRestartAndPlay = () => {
-    hasEndedRef.current = false;
-    setIsEnded(false);
-    if (iframeRef.current && iframeRef.current.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
-        '*'
-      );
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
         '*'
@@ -54,27 +25,25 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
         JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
         '*'
       );
-      setIsMuted(false);
+    }
+  };
+
+  const handleRestartAndPlay = () => {
+    hasEndedRef.current = false;
+    setIsEnded(false);
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
+        '*'
+      );
+      enableSoundAndPlay();
     }
   };
 
   useEffect(() => {
     // Send play and unMute commands right after load
     const timer = setTimeout(() => {
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
-          '*'
-        );
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
-          '*'
-        );
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
-          '*'
-        );
-      }
+      enableSoundAndPlay();
     }, 400);
 
     // Listen to messages from YouTube iframe player to detect when it finishes
@@ -110,12 +79,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
 
     const handlePlay = () => {
       if (hasEndedRef.current) return; // Do not resume if the video already finished
-      if (iframeRef.current && iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
-          '*'
-        );
-      }
+      enableSoundAndPlay();
     };
 
     // IntersectionObserver to detect when video scrolls out of or back into viewport
@@ -171,17 +135,13 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border-[3px] border-slate-900 ring-4 ring-blue-500/20">
             
             {/* VSL Top Sound/Attention Header Bar */}
-            <button
-              type="button"
-              onClick={toggleSound}
-              className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 hover:bg-slate-800 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md transition-colors cursor-pointer"
-            >
+            <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md select-none">
               <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
               <span className="text-amber-400 font-black tracking-wide uppercase">
-                {isMuted ? 'CLIQUE PARA ATIVAR O SOM' : 'SOM ATIVADO'}
+                SOM ATIVADO
               </span>
-              <span className="text-slate-300">{isMuted ? '🔇' : '🔊'}</span>
-            </button>
+              <span className="text-slate-300">🔊</span>
+            </div>
 
             {/* Video Player Frame with Clean VSL Crop */}
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
@@ -193,12 +153,13 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
-              {/* Tap to toggle sound anywhere on video without interrupting playback */}
+              {/* Protective touch interceptor: touching/clicking the screen does NOT mute or pause */}
               {!isEnded && (
                 <div 
-                  className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-                  onClick={toggleSound}
-                  aria-label="Ativar som do vídeo"
+                  className="absolute inset-0 z-10 cursor-default bg-transparent"
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  aria-hidden="true"
                 />
               )}
 
