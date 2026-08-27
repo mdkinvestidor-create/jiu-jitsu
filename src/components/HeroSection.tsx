@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, RotateCcw } from 'lucide-react';
+import { Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -8,11 +8,13 @@ interface HeroSectionProps {
 export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
   const hasEndedRef = useRef(false);
 
-  const enableSoundAndPlay = () => {
+  const unmuteAndPlay = () => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
+      // Send play and unmute commands
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
         '*'
@@ -25,6 +27,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
         JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
         '*'
       );
+      setIsMuted(false);
     }
   };
 
@@ -36,26 +39,28 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
         JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
         '*'
       );
-      enableSoundAndPlay();
+      unmuteAndPlay();
     }
   };
 
   useEffect(() => {
-    // Repeatedly trigger autoplay immediately upon mount to ensure immediate start without user touch
-    const t1 = setTimeout(enableSoundAndPlay, 100);
-    const t2 = setTimeout(enableSoundAndPlay, 500);
-    const t3 = setTimeout(enableSoundAndPlay, 1000);
-    const t4 = setTimeout(enableSoundAndPlay, 2000);
+    // 1. Initial attempt to play and unmute
+    const t1 = setTimeout(unmuteAndPlay, 200);
+    const t2 = setTimeout(unmuteAndPlay, 800);
+    const t3 = setTimeout(unmuteAndPlay, 1500);
 
-    // Also unmute/play on any first background interaction or scroll
+    // 2. Guarantee for mobile browsers (iOS Safari & Android Chrome):
+    // Mobile browsers require a user gesture (tap/scroll) before audio can play.
+    // Video starts instantly in muted mode, and unmutes on the first interaction.
     const handleFirstGesture = () => {
       if (!hasEndedRef.current) {
-        enableSoundAndPlay();
+        unmuteAndPlay();
       }
     };
-    window.addEventListener('scroll', handleFirstGesture, { passive: true, once: true });
-    window.addEventListener('touchstart', handleFirstGesture, { passive: true, once: true });
-    window.addEventListener('click', handleFirstGesture, { passive: true, once: true });
+
+    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
+    window.addEventListener('scroll', handleFirstGesture, { passive: true });
+    window.addEventListener('click', handleFirstGesture, { passive: true });
 
     // Listen to messages from YouTube iframe player to detect when it finishes
     const handleWindowMessage = (event: MessageEvent) => {
@@ -90,7 +95,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
 
     const handlePlay = () => {
       if (hasEndedRef.current) return; // Do not resume if the video already finished
-      enableSoundAndPlay();
+      unmuteAndPlay();
     };
 
     // IntersectionObserver to detect when video scrolls out of or back into viewport
@@ -105,7 +110,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
         });
       },
       {
-        threshold: 0.35, // Plays when 35%+ in view, pauses when leaving
+        threshold: 0.25, // Plays when 25%+ in view, pauses when leaving
       }
     );
 
@@ -118,9 +123,8 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
-      clearTimeout(t4);
-      window.removeEventListener('scroll', handleFirstGesture);
       window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('scroll', handleFirstGesture);
       window.removeEventListener('click', handleFirstGesture);
       if (currentContainer) {
         observer.unobserve(currentContainer);
@@ -152,32 +156,39 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border-[3px] border-slate-900 ring-4 ring-blue-500/20">
             
             {/* VSL Top Sound/Attention Header Bar */}
-            <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md select-none">
+            <button
+              type="button"
+              onClick={unmuteAndPlay}
+              className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 hover:bg-slate-800 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md transition-colors cursor-pointer"
+            >
               <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
               <span className="text-amber-400 font-black tracking-wide uppercase">
-                SOM ATIVADO
+                {isMuted ? 'TOQUE PARA ATIVAR O SOM' : 'VÍDEO AO VIVO • SOM ATIVO'}
               </span>
-              <span className="text-slate-300">🔊</span>
-            </div>
+              <span className="text-slate-300">
+                {isMuted ? <VolumeX className="w-3.5 h-3.5 inline" /> : <Volume2 className="w-3.5 h-3.5 inline text-emerald-400" />}
+              </span>
+            </button>
 
-            {/* Video Player Frame with Clean VSL Crop */}
+            {/* Video Player Frame with Clean VSL Crop (Guaranteed Immediate Autoplay) */}
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
               <iframe
                 ref={iframeRef}
-                onLoad={enableSoundAndPlay}
-                src="https://www.youtube.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=0&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&showinfo=0&fs=0"
+                onLoad={unmuteAndPlay}
+                src="https://www.youtube-nocookie.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=0&playsinline=1&controls=0&disablekb=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&fs=0&origin=window.location.origin"
                 title="Apresentação das Dinâmicas de Jiu-Jitsu"
                 className="absolute -top-[14%] -left-[12%] w-[124%] h-[128%] border-0 pointer-events-none"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
-              {/* Protective touch interceptor: touching/clicking the screen does NOT mute or pause */}
+              
+              {/* Tap interceptor to unmute without pausing on mobile */}
               {!isEnded && (
                 <div 
-                  className="absolute inset-0 z-10 cursor-default bg-transparent"
-                  onClick={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  aria-hidden="true"
+                  className="absolute inset-0 z-10 cursor-pointer bg-transparent"
+                  onClick={unmuteAndPlay}
+                  onTouchStart={unmuteAndPlay}
+                  aria-label="Ativar som do vídeo"
                 />
               )}
 
@@ -222,3 +233,4 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     </section>
   );
 }
+
