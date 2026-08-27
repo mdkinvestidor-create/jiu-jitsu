@@ -14,15 +14,15 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   const enableSoundAndPlay = () => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
         '*'
       );
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
-        '*'
-      );
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
         '*'
       );
     }
@@ -41,10 +41,21 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   };
 
   useEffect(() => {
-    // Send play and unMute commands right after load
-    const timer = setTimeout(() => {
-      enableSoundAndPlay();
-    }, 400);
+    // Repeatedly trigger autoplay immediately upon mount to ensure immediate start without user touch
+    const t1 = setTimeout(enableSoundAndPlay, 100);
+    const t2 = setTimeout(enableSoundAndPlay, 500);
+    const t3 = setTimeout(enableSoundAndPlay, 1000);
+    const t4 = setTimeout(enableSoundAndPlay, 2000);
+
+    // Also unmute/play on any first background interaction or scroll
+    const handleFirstGesture = () => {
+      if (!hasEndedRef.current) {
+        enableSoundAndPlay();
+      }
+    };
+    window.addEventListener('scroll', handleFirstGesture, { passive: true, once: true });
+    window.addEventListener('touchstart', handleFirstGesture, { passive: true, once: true });
+    window.addEventListener('click', handleFirstGesture, { passive: true, once: true });
 
     // Listen to messages from YouTube iframe player to detect when it finishes
     const handleWindowMessage = (event: MessageEvent) => {
@@ -104,7 +115,13 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     }
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      window.removeEventListener('scroll', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('click', handleFirstGesture);
       if (currentContainer) {
         observer.unobserve(currentContainer);
       }
@@ -147,6 +164,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
               <iframe
                 ref={iframeRef}
+                onLoad={enableSoundAndPlay}
                 src="https://www.youtube.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=0&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&showinfo=0&fs=0"
                 title="Apresentação das Dinâmicas de Jiu-Jitsu"
                 className="absolute -top-[14%] -left-[12%] w-[124%] h-[128%] border-0 pointer-events-none"
