@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Play, RotateCcw } from 'lucide-react';
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -7,7 +8,9 @@ interface HeroSectionProps {
 export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isEnded, setIsEnded] = useState(false);
+  const hasEndedRef = useRef(false);
 
   const toggleSound = () => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
@@ -31,12 +34,42 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     }
   };
 
-  useEffect(() => {
-    let hasEnded = false;
+  const handleRestartAndPlay = () => {
+    hasEndedRef.current = false;
+    setIsEnded(false);
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+        '*'
+      );
+      setIsMuted(false);
+    }
+  };
 
-    // Send play command right after load
+  useEffect(() => {
+    // Send play and unMute commands right after load
     const timer = setTimeout(() => {
       if (iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
+          '*'
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
+          '*'
+        );
         iframeRef.current.contentWindow.postMessage(
           JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
           '*'
@@ -51,7 +84,12 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           const data = JSON.parse(event.data);
           // YT.PlayerState.ENDED is 0
           if (data.event === 'onStateChange' && data.info === 0) {
-            hasEnded = true;
+            hasEndedRef.current = true;
+            setIsEnded(true);
+          } else if (data.event === 'onStateChange' && data.info === 1) {
+            // YT.PlayerState.PLAYING is 1
+            hasEndedRef.current = false;
+            setIsEnded(false);
           }
         }
       } catch {
@@ -71,7 +109,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     };
 
     const handlePlay = () => {
-      if (hasEnded) return; // Do not resume if the video already finished
+      if (hasEndedRef.current) return; // Do not resume if the video already finished
       if (iframeRef.current && iframeRef.current.contentWindow) {
         iframeRef.current.contentWindow.postMessage(
           JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
@@ -149,18 +187,44 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
               <iframe
                 ref={iframeRef}
-                src="https://www.youtube.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&showinfo=0&fs=0"
+                src="https://www.youtube.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=0&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&showinfo=0&fs=0"
                 title="Apresentação das Dinâmicas de Jiu-Jitsu"
                 className="absolute -top-[14%] -left-[12%] w-[124%] h-[128%] border-0 pointer-events-none"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
               {/* Tap to toggle sound anywhere on video without interrupting playback */}
-              <div 
-                className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-                onClick={toggleSound}
-                aria-label="Ativar som do vídeo"
-              />
+              {!isEnded && (
+                <div 
+                  className="absolute inset-0 z-10 cursor-pointer bg-transparent"
+                  onClick={toggleSound}
+                  aria-label="Ativar som do vídeo"
+                />
+              )}
+
+              {/* Replay / Play Overlay when video finishes */}
+              {isEnded && (
+                <div 
+                  className="absolute inset-0 z-20 bg-black/75 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 transition-all duration-300 cursor-pointer"
+                  onClick={handleRestartAndPlay}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRestartAndPlay();
+                    }}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#16a34a] hover:bg-[#15803d] text-white flex items-center justify-center shadow-2xl ring-4 ring-white/30 transform hover:scale-105 active:scale-95 transition-transform duration-200 cursor-pointer mb-3"
+                    aria-label="Assistir novamente"
+                  >
+                    <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-white translate-x-0.5" />
+                  </button>
+                  <span className="text-white font-black text-sm sm:text-base tracking-wide flex items-center gap-1.5 drop-shadow-md">
+                    <RotateCcw className="w-4 h-4 text-emerald-400" />
+                    Assistir Novamente
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
