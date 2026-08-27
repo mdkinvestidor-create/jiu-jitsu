@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -7,9 +7,42 @@ interface HeroSectionProps {
 export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const toggleSound = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      if (isMuted) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
+          '*'
+        );
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
+          '*'
+        );
+        setIsMuted(false);
+      } else {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'mute', args: '' }),
+          '*'
+        );
+        setIsMuted(true);
+      }
+    }
+  };
 
   useEffect(() => {
     let hasEnded = false;
+
+    // Send play command right after load
+    const timer = setTimeout(() => {
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+          '*'
+        );
+      }
+    }, 400);
 
     // Listen to messages from YouTube iframe player to detect when it finishes
     const handleWindowMessage = (event: MessageEvent) => {
@@ -69,6 +102,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     }
 
     return () => {
+      clearTimeout(timer);
       if (currentContainer) {
         observer.unobserve(currentContainer);
       }
@@ -99,28 +133,33 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border-[3px] border-slate-900 ring-4 ring-blue-500/20">
             
             {/* VSL Top Sound/Attention Header Bar */}
-            <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white text-[11px] sm:text-xs font-bold py-2 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md">
+            <button
+              type="button"
+              onClick={toggleSound}
+              className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 hover:bg-slate-800 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md transition-colors cursor-pointer"
+            >
               <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-              <span className="text-amber-400 font-black tracking-wide uppercase">ASSISTA COM SOM</span>
-              <span className="text-slate-300">🔊</span>
-            </div>
+              <span className="text-amber-400 font-black tracking-wide uppercase">
+                {isMuted ? 'CLIQUE PARA ATIVAR O SOM' : 'SOM ATIVADO'}
+              </span>
+              <span className="text-slate-300">{isMuted ? '🔇' : '🔊'}</span>
+            </button>
 
             {/* Video Player Frame with Clean VSL Crop */}
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
               <iframe
                 ref={iframeRef}
-                src="https://www.youtube.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=0&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&showinfo=0&fs=0"
+                src="https://www.youtube.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=1&controls=0&disablekb=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&showinfo=0&fs=0"
                 title="Apresentação das Dinâmicas de Jiu-Jitsu"
                 className="absolute -top-[14%] -left-[12%] w-[124%] h-[128%] border-0 pointer-events-none"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
-              {/* Invisible touch/click interceptor layer to prevent accidental pause while running */}
+              {/* Tap to toggle sound anywhere on video without interrupting playback */}
               <div 
-                className="absolute inset-0 z-10 cursor-default bg-transparent"
-                onClick={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                aria-hidden="true"
+                className="absolute inset-0 z-10 cursor-pointer bg-transparent"
+                onClick={toggleSound}
+                aria-label="Ativar som do vídeo"
               />
             </div>
           </div>
