@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Play, RotateCcw, Volume2 } from 'lucide-react';
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -8,15 +8,42 @@ interface HeroSectionProps {
 export default function HeroSection({ onCtaClick }: HeroSectionProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
   const hasEndedRef = useRef(false);
+  const isPlayingRef = useRef(false);
 
-  const unmuteAndPlay = () => {
+  const startPlayback = () => {
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    hasEndedRef.current = false;
+    setIsEnded(false);
+
     if (iframeRef.current && iframeRef.current.contentWindow) {
-      // Send play and unmute commands
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'unMute', args: '' }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
+        '*'
+      );
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+        '*'
+      );
+    }
+  };
+
+  const handleRestartAndPlay = () => {
+    hasEndedRef.current = false;
+    setIsEnded(false);
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
         '*'
       );
       iframeRef.current.contentWindow.postMessage(
@@ -27,42 +54,15 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
         JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
         '*'
       );
-      setIsMuted(false);
-    }
-  };
-
-  const handleRestartAndPlay = () => {
-    hasEndedRef.current = false;
-    setIsEnded(false);
-    if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
+        JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
         '*'
       );
-      unmuteAndPlay();
     }
   };
 
   useEffect(() => {
-    // 1. Initial attempt to play and unmute
-    const t1 = setTimeout(unmuteAndPlay, 200);
-    const t2 = setTimeout(unmuteAndPlay, 800);
-    const t3 = setTimeout(unmuteAndPlay, 1500);
-
-    // 2. Guarantee for mobile browsers (iOS Safari & Android Chrome):
-    // Mobile browsers require a user gesture (tap/scroll) before audio can play.
-    // Video starts instantly in muted mode, and unmutes on the first interaction.
-    const handleFirstGesture = () => {
-      if (!hasEndedRef.current) {
-        unmuteAndPlay();
-      }
-    };
-
-    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
-    window.addEventListener('scroll', handleFirstGesture, { passive: true });
-    window.addEventListener('click', handleFirstGesture, { passive: true });
-
-    // Listen to messages from YouTube iframe player to detect when it finishes
+    // Listen to messages from YouTube iframe player to detect when it finishes or state changes
     const handleWindowMessage = (event: MessageEvent) => {
       try {
         if (typeof event.data === 'string') {
@@ -70,10 +70,14 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           // YT.PlayerState.ENDED is 0
           if (data.event === 'onStateChange' && data.info === 0) {
             hasEndedRef.current = true;
+            isPlayingRef.current = false;
             setIsEnded(true);
+            setIsPlaying(false);
           } else if (data.event === 'onStateChange' && data.info === 1) {
             // YT.PlayerState.PLAYING is 1
             hasEndedRef.current = false;
+            isPlayingRef.current = true;
+            setIsPlaying(true);
             setIsEnded(false);
           }
         }
@@ -85,7 +89,7 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     window.addEventListener('message', handleWindowMessage);
 
     const handlePause = () => {
-      if (iframeRef.current && iframeRef.current.contentWindow) {
+      if (isPlayingRef.current && iframeRef.current && iframeRef.current.contentWindow) {
         iframeRef.current.contentWindow.postMessage(
           JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
           '*'
@@ -93,9 +97,13 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
       }
     };
 
-    const handlePlay = () => {
-      if (hasEndedRef.current) return; // Do not resume if the video already finished
-      unmuteAndPlay();
+    const handleResume = () => {
+      if (isPlayingRef.current && !hasEndedRef.current && iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+          '*'
+        );
+      }
     };
 
     // IntersectionObserver to detect when video scrolls out of or back into viewport
@@ -103,14 +111,14 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            handlePlay();
+            handleResume();
           } else {
             handlePause();
           }
         });
       },
       {
-        threshold: 0.25, // Plays when 25%+ in view, pauses when leaving
+        threshold: 0.25, // Pauses when 75%+ of video leaves viewport
       }
     );
 
@@ -120,12 +128,6 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     }
 
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      window.removeEventListener('touchstart', handleFirstGesture);
-      window.removeEventListener('scroll', handleFirstGesture);
-      window.removeEventListener('click', handleFirstGesture);
       if (currentContainer) {
         observer.unobserve(currentContainer);
       }
@@ -156,47 +158,74 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border-[3px] border-slate-900 ring-4 ring-blue-500/20">
             
             {/* VSL Top Sound/Attention Header Bar */}
-            <button
-              type="button"
-              onClick={unmuteAndPlay}
-              className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 hover:bg-slate-800 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md transition-colors cursor-pointer"
+            <div 
+              onClick={!isPlaying ? startPlayback : undefined}
+              className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md select-none cursor-pointer"
             >
               <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
               <span className="text-amber-400 font-black tracking-wide uppercase">
-                {isMuted ? 'TOQUE PARA ATIVAR O SOM' : 'VÍDEO AO VIVO • SOM ATIVO'}
+                {!isPlaying ? 'CLIQUE NO PLAY PARA ASSISTIR' : 'VÍDEO AO VIVO • SOM ATIVADO'}
               </span>
               <span className="text-slate-300">
-                {isMuted ? <VolumeX className="w-3.5 h-3.5 inline" /> : <Volume2 className="w-3.5 h-3.5 inline text-emerald-400" />}
+                <Volume2 className="w-3.5 h-3.5 inline text-emerald-400" />
               </span>
-            </button>
+            </div>
 
-            {/* Video Player Frame with Clean VSL Crop (Guaranteed Immediate Autoplay) */}
+            {/* Video Player Frame with Clean VSL Crop (YouTube Shorts: WGl2BaOtkSQ) */}
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
               <iframe
                 ref={iframeRef}
-                onLoad={unmuteAndPlay}
-                src="https://www.youtube-nocookie.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=1&mute=0&playsinline=1&controls=0&disablekb=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&fs=0&origin=window.location.origin"
+                src="https://www.youtube-nocookie.com/embed/WGl2BaOtkSQ?enablejsapi=1&autoplay=0&mute=0&playsinline=1&controls=0&disablekb=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&fs=0"
                 title="Apresentação das Dinâmicas de Jiu-Jitsu"
                 className="absolute -top-[14%] -left-[12%] w-[124%] h-[128%] border-0 pointer-events-none"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
-              
-              {/* Tap interceptor to unmute without pausing on mobile */}
-              {!isEnded && (
+
+              {/* Initial Active Play Button Overlay */}
+              {!isPlaying && !isEnded && (
                 <div 
-                  className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-                  onClick={unmuteAndPlay}
-                  onTouchStart={unmuteAndPlay}
-                  aria-label="Ativar som do vídeo"
+                  className="absolute inset-0 z-20 bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 transition-all duration-300 cursor-pointer group"
+                  onClick={startPlayback}
+                  onTouchStart={startPlayback}
+                >
+                  {/* Glowing Animated Play Button */}
+                  <div className="relative flex items-center justify-center mb-3">
+                    <span className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#16a34a]/30 animate-ping" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startPlayback();
+                      }}
+                      className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#16a34a] hover:bg-[#15803d] text-white flex items-center justify-center shadow-2xl ring-4 ring-white/40 transform group-hover:scale-110 active:scale-95 transition-transform duration-200 cursor-pointer"
+                      aria-label="Iniciar vídeo com som"
+                    >
+                      <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-white translate-x-0.5" />
+                    </button>
+                  </div>
+                  <span className="text-white font-black text-sm sm:text-base tracking-wide flex items-center gap-1.5 drop-shadow-md uppercase bg-black/50 px-3.5 py-1 rounded-full border border-white/10">
+                    Clique para Assistir
+                  </span>
+                </div>
+              )}
+
+              {/* Video is actively playing: protective layer so taps do not pause/interrupt */}
+              {isPlaying && !isEnded && (
+                <div 
+                  className="absolute inset-0 z-10 cursor-default bg-transparent"
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  aria-hidden="true"
                 />
               )}
 
               {/* Replay / Play Overlay when video finishes */}
               {isEnded && (
                 <div 
-                  className="absolute inset-0 z-20 bg-black/75 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 transition-all duration-300 cursor-pointer"
+                  className="absolute inset-0 z-20 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 transition-all duration-300 cursor-pointer"
                   onClick={handleRestartAndPlay}
+                  onTouchStart={handleRestartAndPlay}
                 >
                   <button
                     type="button"
@@ -233,4 +262,5 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
     </section>
   );
 }
+
 
