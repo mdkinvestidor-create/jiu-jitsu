@@ -77,14 +77,14 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
         {/* Pricing Cards (2 Columns on desktop, perfectly proportioned cards on mobile) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-[360px] sm:max-w-md md:max-w-4xl mx-auto items-stretch">
           
-          {/* Card 1: Kit básico */}
+          {/* Card 1: Plano Completo */}
           <div
             id="kit-basico-card"
             className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 md:p-8 flex flex-col justify-between text-left shadow-sm hover:shadow-md transition-shadow relative w-full"
           >
             <div>
               <h3 className="text-2xl font-black text-slate-900">
-                Kit básico
+                Plano Completo
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
                 Para quem está começando agora.
@@ -131,7 +131,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 onClick={() => onSelectPlan('basic')}
                 className="w-full bg-[#e2e8f0] hover:bg-[#cbd5e1] text-slate-800 font-extrabold text-sm py-4 px-6 rounded-xl uppercase tracking-wider text-center transition-colors cursor-pointer"
               >
-                ESCOLHER KIT BÁSICO
+                ESCOLHER PLANO COMPLETO
               </button>
 
               {/* Trust Badges */}
@@ -169,10 +169,10 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
             id="kit-completo-card"
             className="bg-white border-2 border-[#0057d9] rounded-3xl p-5 sm:p-7 md:p-8 flex flex-col justify-between text-left shadow-xl relative w-full"
           >
-            {/* Mais Popular Pill Badge */}
+            {/* O Mais Vendido Pill Badge */}
             <div className="absolute -top-3.5 right-6 bg-[#002875] text-white text-[11px] font-black px-4 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-md">
               <span>🌟</span>
-              <span>MAIS POPULAR</span>
+              <span>O MAIS VENDIDO</span>
             </div>
 
             <div>
@@ -256,7 +256,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   De R$ 147 por:
                 </span>
                 <div className="text-4xl sm:text-5xl font-black text-[#16a34a] leading-none mt-1">
-                  R$ 49<span className="text-2xl">,90</span>
+                  R$ 37<span className="text-2xl">,90</span>
                 </div>
                 <span className="text-[11px] text-[#16a34a] font-extrabold block mt-1 tracking-wider uppercase">
                   ACESSO VITALÍCIO

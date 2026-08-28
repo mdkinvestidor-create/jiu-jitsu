@@ -172,10 +172,10 @@ export default function SpecialOfferModal({
           {/* Price Box */}
           <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3 mb-3.5">
             <div className="text-xs text-slate-500 line-through font-semibold">
-              De R$ 49,90 por apenas:
+              De R$ 37,90 por apenas:
             </div>
             <div className="text-3xl sm:text-4xl font-black text-[#16a34a] leading-none mt-0.5">
-              R$ 29<span className="text-2xl">,90</span>
+              R$ 21<span className="text-2xl">,90</span>
             </div>
             <div className="text-[11px] font-extrabold text-[#15803d] uppercase tracking-wider mt-1">
               PAGAMENTO ÚNICO • ACESSO VITALÍCIO
@@ -188,7 +188,7 @@ export default function SpecialOfferModal({
             onClick={onAcceptOffer}
             className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white font-black text-sm sm:text-base py-3.5 px-5 rounded-2xl uppercase tracking-wider shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
           >
-            <span>SIM! QUERO O KIT COMPLETO POR R$ 29,90</span>
+            <span>SIM! QUERO O KIT COMPLETO POR R$ 21,90</span>
             <ArrowRight className="w-4 h-4 shrink-0" />
           </button>
 

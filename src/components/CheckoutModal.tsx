@@ -17,14 +17,14 @@ export default function CheckoutModal({ isOpen, onClose, plan }: CheckoutModalPr
 
   if (!isOpen) return null;
 
-  let price = 'R$ 49,90';
+  let price = 'R$ 37,90';
   let planTitle = 'KIT COMPLETO 🌟 (+500 Dinâmicas + 3 Bônus)';
 
   if (plan === 'basic') {
     price = 'R$ 10,00';
-    planTitle = 'Kit básico (+500 Dinâmicas)';
+    planTitle = 'Plano Completo (+500 Dinâmicas)';
   } else if (plan === 'special_offer') {
-    price = 'R$ 29,90';
+    price = 'R$ 21,90';
     planTitle = 'KIT COMPLETO VIP 🌟 (Oferta Especial + 3 Bônus)';
   }
 

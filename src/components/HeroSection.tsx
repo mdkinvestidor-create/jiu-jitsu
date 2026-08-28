@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, RotateCcw, Volume2 } from 'lucide-react';
+import { Play, RotateCcw } from 'lucide-react';
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -152,25 +152,16 @@ export default function HeroSection({ onCtaClick }: HeroSectionProps) {
           </span>
         </h1>
 
+        {/* Subheadline */}
+        <p className="mt-4 sm:mt-5 text-base sm:text-lg md:text-xl text-slate-700 font-semibold max-w-2xl px-2 leading-relaxed">
+          500+ dinâmicas prontas para manter as crianças envolvidas enquanto aprendem Jiu-Jitsu de verdade.
+        </p>
+
         {/* VSL Video Player Layout */}
         <div ref={containerRef} className="mt-8 sm:mt-10 w-full max-w-[290px] sm:max-w-[330px] mx-auto">
           {/* VSL Card Container */}
           <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border-[3px] border-slate-900 ring-4 ring-blue-500/20">
             
-            {/* VSL Top Sound/Attention Header Bar */}
-            <div 
-              onClick={!isPlaying ? startPlayback : undefined}
-              className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 border-b border-white/10 shadow-md select-none cursor-pointer"
-            >
-              <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-              <span className="text-amber-400 font-black tracking-wide uppercase">
-                {!isPlaying ? 'CLIQUE NO PLAY PARA ASSISTIR' : 'VÍDEO AO VIVO • SOM ATIVADO'}
-              </span>
-              <span className="text-slate-300">
-                <Volume2 className="w-3.5 h-3.5 inline text-emerald-400" />
-              </span>
-            </div>
-
             {/* Video Player Frame with Clean VSL Crop (YouTube Shorts: WGl2BaOtkSQ) */}
             <div className="relative w-full aspect-[9/16] overflow-hidden bg-black select-none">
               <iframe
